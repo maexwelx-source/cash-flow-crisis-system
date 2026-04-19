@@ -1,6 +1,6 @@
 # Cash Flow Crisis System
 
-A 24-month SaaS cash flow model built for operations managers who need to manage liquidity under pressure, not just report it.
+A 24-month SaaS cash flow model.
 
 The idea came from a real problem: most financial models are built by finance for finance. They're static, locked, and by the time you get the numbers, the decision window is already closed. This model is built differently - you flip a switch, the numbers update, and you immediately see whether the runway survives.
 
