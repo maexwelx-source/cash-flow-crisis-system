@@ -89,16 +89,6 @@ Recommended visuals: Line and Clustered Column for NCF plus Balance on dual axis
 
 ---
 
-## What I'd do differently next time
-
-The AR lag formula works well for delays up to 30 days but flattens out after that - 45 days and 90 days produce the same result. A proper multi-month waterfall would fix this but adds significant complexity for what's meant to be an operational model.
-
-Tax is approximated on an accrual basis rather than actual cash payment timing. Good enough for liquidity planning, not good enough for tax compliance.
-
-Inventory Turnover is in the Assumptions sheet but not connected to any formula. It's there as a placeholder for product companies who'd want to model working capital tied up in stock.
-
----
-
 ## Stack
 
 Excel - Power BI (DAX) - HTML( Dashboard) -  for model generation and validation
