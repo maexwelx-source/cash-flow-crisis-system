@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cash Flow & Liquidity Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:      #0A1628;
+    --navy-mid:  #0F2040;
+    --navy-card: #162B4A;
+    --slate:     #1E3A5F;
+    --gold:      #C9A84C;
+    --gold-lt:   #E8C97A;
+    --gold-dim:  #3D2E0A;
+    --green:     #00A86B;
+    --green-dim: #052B1A;
+    --red:       #E8374A;
+    --red-dim:   #2D0A0F;
+    --amber:     #F59E0B;
+    --white:     #FFFFFF;
+    --cool:      #B8C9DC;
+    --muted:     #5A7A9A;
+    --mono: 'DM Mono', monospace;
+    --serif: 'Playfair Display', serif;
+    --sans: 'DM Sans', sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { background: var(--navy); color: var(--cool); font-family: var(--sans); }
+  body { min-height: 100vh; padding: 0; }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--navy);
+    border-bottom: 1px solid var(--gold);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-left { display: flex; align-items: baseline; gap: 16px; }
+  .header-title { font-family: var(--serif); font-size: 20px; font-weight: 600; color: var(--gold-lt); letter-spacing: 0.02em; }
+  .header-sub { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  .header-scenario { font-family: var(--mono); font-size: 11px; padding: 4px 12px; border: 1px solid var(--gold); border-radius: 2px; color: var(--gold); letter-spacing: 0.06em; }
+
+  /* ── LAYOUT ── */
+  .page { max-width: 1400px; margin: 0 auto; padding: 28px 32px 48px; }
+
+  /* ── KPI STRIP ── */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1px;
+    background: var(--slate);
+    border: 1px solid var(--slate);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+  .kpi {
+    background: var(--navy-card);
+    padding: 16px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--gold);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .kpi:hover::before { opacity: 1; }
+  .kpi-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .kpi-value { font-family: var(--mono); font-size: 22px; font-weight: 500; color: var(--white); line-height: 1; margin-bottom: 4px; }
+  .kpi-value.neg { color: var(--red); }
+  .kpi-value.pos { color: var(--green); }
+  .kpi-value.safe { color: var(--green); font-size: 16px; }
+  .kpi-sub { font-size: 11px; color: var(--muted); }
+
+  /* ── SECTION HEADER ── */
+  .section-hdr {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    margin-top: 32px;
+  }
+  .section-hdr:first-of-type { margin-top: 0; }
+  .section-title { font-family: var(--serif); font-size: 15px; font-weight: 500; color: var(--gold-lt); }
+  .section-line { flex: 1; height: 1px; background: var(--slate); }
+  .section-tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; color: var(--muted); }
+
+  /* ── CHART CARDS ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; }
+  .grid-full { display: grid; grid-template-columns: 1fr; gap: 20px; margin-bottom: 20px; }
+  .card {
+    background: var(--navy-mid);
+    border: 1px solid var(--slate);
+    border-radius: 4px;
+    padding: 20px 24px;
+    position: relative;
+  }
+  .card-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title::after { content: ''; flex: 1; height: 1px; background: var(--slate); }
+  .chart-wrap { position: relative; }
+
+  /* ── WATERFALL TABLE ── */
+  .wf-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  .wf-table th {
+    text-align: right; padding: 6px 12px;
+    color: var(--muted); font-size: 10px; letter-spacing: 0.08em;
+    border-bottom: 1px solid var(--slate);
+    font-weight: 400;
+  }
+  .wf-table th:first-child { text-align: left; }
+  .wf-table td { padding: 7px 12px; border-bottom: 1px solid rgba(30,58,95,0.5); text-align: right; }
+  .wf-table td:first-child { text-align: left; color: var(--cool); }
+  .wf-row-inflow td:first-child { color: var(--green); }
+  .wf-row-outflow td:first-child { color: #CC4455; }
+  .wf-row-net td { color: var(--white); font-weight: 500; border-top: 1px solid var(--gold); border-bottom: 1px solid var(--gold); }
+  .wf-row-net td:first-child { color: var(--gold-lt); }
+  .wf-row-sub td:first-child { padding-left: 24px; color: var(--muted); font-size: 11px; }
+  .wf-pos { color: var(--green); }
+  .wf-neg { color: var(--red); }
+  .wf-neutral { color: var(--cool); }
+  .month-selector {
+    display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px;
+  }
+  .mo-btn {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em;
+    padding: 4px 8px; border: 1px solid var(--slate); border-radius: 2px;
+    background: transparent; color: var(--muted); cursor: pointer;
+    transition: all 0.15s;
+  }
+  .mo-btn:hover { border-color: var(--gold); color: var(--gold-lt); }
+  .mo-btn.active { background: var(--gold-dim); border-color: var(--gold); color: var(--gold-lt); }
+
+  /* ── RUNWAY GAUGE ── */
+  .runway-gauge { display: flex; flex-direction: column; align-items: center; padding: 8px 0; }
+  .runway-num { font-family: var(--mono); font-size: 48px; font-weight: 500; color: var(--green); line-height: 1; }
+  .runway-unit { font-family: var(--sans); font-size: 13px; color: var(--muted); margin-top: 4px; margin-bottom: 16px; }
+  .runway-bar { width: 100%; height: 6px; background: var(--slate); border-radius: 3px; overflow: hidden; }
+  .runway-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+  .runway-legend { display: flex; justify-content: space-between; width: 100%; margin-top: 8px; }
+  .runway-legend span { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+
+  /* ── COST BREAKDOWN ── */
+  .cost-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .cost-label { font-family: var(--mono); font-size: 11px; color: var(--cool); min-width: 80px; }
+  .cost-bar-wrap { flex: 1; height: 6px; background: var(--slate); border-radius: 2px; overflow: hidden; }
+  .cost-bar { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+  .cost-val { font-family: var(--mono); font-size: 11px; color: var(--muted); min-width: 64px; text-align: right; }
+
+  /* ── FOOTER ── */
+  .footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--slate);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .footer-note { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.06em; }
+  .footer-brand { font-family: var(--serif); font-size: 12px; color: var(--gold); }
+
+  @media (max-width: 900px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <span class="header-title">Cash Flow & Liquidity Model</span>
+    <span class="header-sub">24-month crisis scenario</span>
+  </div>
+  <span class="header-scenario" id="scenario-badge">SCENARIO: CutMktg + FrzHire</span>
+</div>
+
+<div class="page">
+
+  <!-- KPI STRIP -->
+  <div class="kpi-strip">
+    <div class="kpi">
+      <div class="kpi-label">Avg Burn Rate</div>
+      <div class="kpi-value neg" id="kpi-burn">—</div>
+      <div class="kpi-sub">Monthly when cash-negative</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Min Runway</div>
+      <div class="kpi-value safe" id="kpi-runway">—</div>
+      <div class="kpi-sub">Months of cash left</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Breakeven Rev.</div>
+      <div class="kpi-value" id="kpi-be">—</div>
+      <div class="kpi-sub">Avg to cover fixed costs</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Opening Cash</div>
+      <div class="kpi-value" id="kpi-open">$500,000</div>
+      <div class="kpi-sub">Starting balance</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Closing Balance M24</div>
+      <div class="kpi-value pos" id="kpi-close">—</div>
+      <div class="kpi-sub">End of forecast period</div>
+    </div>
+  </div>
+
+  <!-- CASH FLOW OVERVIEW -->
+  <div class="section-hdr">
+    <span class="section-title">Cash Flow Overview</span>
+    <span class="section-line"></span>
+    <span class="section-tag">24 months</span>
+  </div>
+
+  <div class="grid-full">
+    <div class="card">
+      <div class="card-title">Net Cash Flow & Closing Balance</div>
+      <div class="chart-wrap" style="height:260px">
+        <canvas id="chart-ncf"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">MRR vs Total Inflow</div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chart-mrr"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Burn Rate</div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chart-burn"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- WATERFALL -->
+  <div class="section-hdr">
+    <span class="section-title">Monthly Waterfall</span>
+    <span class="section-line"></span>
+    <span class="section-tag">select month</span>
+  </div>
+
+  <div class="card">
+    <div class="month-selector" id="month-btns"></div>
+    <table class="wf-table" id="wf-table">
+      <thead>
+        <tr>
+          <th style="text-align:left">Line item</th>
+          <th>Amount</th>
+          <th>vs Prior Month</th>
+          <th>% of Inflow</th>
+        </tr>
+      </thead>
+      <tbody id="wf-body"></tbody>
+    </table>
+  </div>
+
+  <!-- COST + RUNWAY -->
+  <div class="section-hdr">
+    <span class="section-title">Cost Breakdown & Runway</span>
+    <span class="section-line"></span>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Cost Structure (selected month)</div>
+      <div id="cost-bars"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Runway — months of cash at current burn</div>
+      <div class="runway-gauge">
+        <div class="runway-num" id="rw-num">✓</div>
+        <div class="runway-unit" id="rw-unit">months (month 1)</div>
+        <div class="runway-bar">
+          <div class="runway-fill" id="rw-fill" style="width:100%"></div>
+        </div>
+        <div class="runway-legend">
+          <span>Critical (0)</span>
+          <span>Alert (3)</span>
+          <span>Safe (12+)</span>
+        </div>
+      </div>
+      <div style="margin-top:20px">
+        <div class="chart-wrap" style="height:120px">
+          <canvas id="chart-runway"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OUTFLOW STACKED -->
+  <div class="section-hdr">
+    <span class="section-title">Outflow Composition</span>
+    <span class="section-line"></span>
+    <span class="section-tag">stacked</span>
+  </div>
+  <div class="card">
+    <div class="chart-wrap" style="height:240px">
+      <canvas id="chart-stack"></canvas>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span class="footer-note">Data source: Cash_Flow_Crisis_System_v2.xlsx · Export_Data · Refreshed on load</span>
+    <span class="footer-brand">Liquidity Dashboard</span>
+  </div>
+</div>
+
+<script>
+const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC',
+                'JAN+1','FEB+1','MAR+1','APR+1','MAY+1','JUN+1','JUL+1','AUG+1','SEP+1','OCT+1','NOV+1','DEC+1'];
+
+const D = {
+  inflow:  [0,120000,128525,137401,146616,156283,166387,160501,155981,152773,150720,149684,149652,150504,152244,154765,157973,161896,166448,171664,177464,183888,190971,198634],
+  outflow: [108080,110016,112030,114385,116962,119657,118129,116962,131742,131227,133059,133078,133329,133815,134508,135382,136445,137673,139078,140636,142359,144257,146307,148522],
+  ncf:     [-108080,9984,16495,23016,29654,36626,48258,43539,24239,21546,17661,16606,16323,16689,17736,19383,21528,24223,27370,31028,35105,39631,44664,50112],
+  balance: [391920,401904,418399,441415,471069,507695,555953,599492,623731,645277,662938,679544,695867,712556,730292,749675,771203,795426,822796,853824,888929,928560,973224,1023336],
+  burn:    [108080,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  mrr:     [120000,128525,137401,146616,156283,166387,160501,155981,152773,150720,149684,149652,150504,152244,154765,157973,161896,166448,171664,177464,183888,190971,198634,206918],
+  newmrr:  [12500,13125,13750,14500,15250,16000,16750,17625,18500,19375,20375,21375,22500,23625,24750,26000,27250,28625,30000,31500,33125,34750,36500,38375],
+  tax:     [2980,4627,6343,8058,9830,11682,10593,9755,5258,4873,4156,4143,4294,4607,5064,5648,6363,7194,8147,9207,10382,11679,13082,14599],
+  payroll: [65000,65000,65000,65000,65000,65000,65000,65000,84500,84500,84500,84500,84500,84500,84500,84500,84500,84500,84500,84500,84500,84500,84500,84500],
+  mktg:    [6500,6500,6500,6500,6500,6500,6500,6500,6500,6500,9100,9100,9100,9100,9100,9100,9100,9100,9100,9100,9100,9100,9100,9100],
+};
+
+// Derived: other costs = outflow - payroll - mktg - tax
+D.other = D.outflow.map((v,i) => v - D.payroll[i] - D.mktg[i] - D.tax[i]);
+// Runway per month: if ncf<0, balance/burn, else Infinity
+D.runway = D.ncf.map((ncf,i) => {
+  if(ncf < 0 && D.burn[i] > 0) return Math.round(D.balance[i] / D.burn[i] * 10) / 10;
+  return null;
+});
+
+const fmt = v => {
+  const abs = Math.abs(v);
+  const s = abs >= 1000000 ? '$' + (abs/1000000).toFixed(1) + 'M'
+          : abs >= 1000    ? '$' + Math.round(abs/1000) + 'K'
+          : '$' + Math.round(abs);
+  return v < 0 ? '(' + s + ')' : s;
+};
+const fmtFull = v => {
+  const sign = v < 0 ? '-' : '';
+  return sign + '$' + Math.abs(Math.round(v)).toLocaleString('en-US');
+};
+
+// ── CHART DEFAULTS ─────────────────────────────────────────────────────────
+Chart.defaults.color = '#5A7A9A';
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.font.size = 10;
+const gridColor = 'rgba(30,58,95,0.6)';
+
+function baseOpts(title) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: true, position: 'top',
+        labels: { boxWidth: 10, padding: 16, color: '#5A7A9A', font: { size: 10 } }
+      },
+      tooltip: {
+        backgroundColor: '#0F2040', borderColor: '#C9A84C', borderWidth: 1,
+        titleColor: '#E8C97A', bodyColor: '#B8C9DC',
+        callbacks: { label: ctx => ' ' + fmtFull(ctx.raw) }
+      }
+    },
+    scales: {
+      x: { grid: { color: gridColor }, ticks: { color: '#5A7A9A', maxRotation: 0, font: { size: 9 } } },
+      y: { grid: { color: gridColor }, ticks: { color: '#5A7A9A', callback: v => fmt(v) } }
+    }
+  };
+}
+
+// ── NCF + BALANCE CHART ────────────────────────────────────────────────────
+new Chart('chart-ncf', {
+  type: 'bar',
+  data: {
+    labels: MONTHS,
+    datasets: [
+      {
+        type: 'bar',
+        label: 'Net Cash Flow',
+        data: D.ncf,
+        backgroundColor: D.ncf.map(v => v >= 0 ? 'rgba(0,168,107,0.7)' : 'rgba(232,55,74,0.7)'),
+        borderColor:     D.ncf.map(v => v >= 0 ? '#00A86B' : '#E8374A'),
+        borderWidth: 1,
+        borderRadius: 2,
+        yAxisID: 'y',
+      },
+      {
+        type: 'line',
+        label: 'Closing Balance',
+        data: D.balance,
+        borderColor: '#C9A84C',
+        backgroundColor: 'rgba(201,168,76,0.08)',
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        tension: 0.3,
+        fill: true,
+        yAxisID: 'y1',
+      }
+    ]
+  },
+  options: {
+    ...baseOpts(),
+    plugins: {
+      ...baseOpts().plugins,
+      legend: { display: true, position: 'top', labels: { boxWidth: 10, padding: 16, color: '#5A7A9A', font: { size: 10 } } }
+    },
+    scales: {
+      x: { grid: { color: gridColor }, ticks: { color: '#5A7A9A', maxRotation: 0, font: { size: 9 } } },
+      y: {
+        position: 'left',
+        grid: { color: gridColor },
+        ticks: { color: '#5A7A9A', callback: v => fmt(v) },
+        title: { display: true, text: 'NCF', color: '#5A7A9A', font: { size: 9 } }
+      },
+      y1: {
+        position: 'right',
+        grid: { drawOnChartArea: false },
+        ticks: { color: '#C9A84C', callback: v => fmt(v) },
+        title: { display: true, text: 'Balance', color: '#C9A84C', font: { size: 9 } }
+      }
+    }
+  }
+});
+
+// ── MRR CHART ──────────────────────────────────────────────────────────────
+new Chart('chart-mrr', {
+  type: 'line',
+  data: {
+    labels: MONTHS,
+    datasets: [
+      { label: 'MRR', data: D.mrr, borderColor: '#00A86B', backgroundColor: 'rgba(0,168,107,0.1)', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: true },
+      { label: 'Total Inflow (cash)', data: D.inflow, borderColor: '#C9A84C', borderDash: [4,3], borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false },
+      { label: 'New MRR Won', data: D.newmrr, borderColor: '#5A7A9A', borderWidth: 1, pointRadius: 0, tension: 0.3, fill: false }
+    ]
+  },
+  options: { ...baseOpts(), scales: { x: { grid: { color: gridColor }, ticks: { color: '#5A7A9A', maxRotation: 0, font: { size: 9 } } }, y: { grid: { color: gridColor }, ticks: { color: '#5A7A9A', callback: v => fmt(v) } } } }
+});
+
+// ── BURN RATE CHART ────────────────────────────────────────────────────────
+new Chart('chart-burn', {
+  type: 'bar',
+  data: {
+    labels: MONTHS,
+    datasets: [{
+      label: 'Burn Rate',
+      data: D.burn,
+      backgroundColor: D.burn.map(v => v > 0 ? 'rgba(232,55,74,0.75)' : 'rgba(30,58,95,0.4)'),
+      borderColor: D.burn.map(v => v > 0 ? '#E8374A' : 'transparent'),
+      borderWidth: 1,
+      borderRadius: 2
+    }]
+  },
+  options: { ...baseOpts(), plugins: { ...baseOpts().plugins, legend: { display: false } }, scales: { x: { grid: { color: gridColor }, ticks: { color: '#5A7A9A', maxRotation: 0, font: { size: 9 } } }, y: { grid: { color: gridColor }, ticks: { color: '#5A7A9A', callback: v => fmt(v) } } } }
+});
+
+// ── STACKED OUTFLOW ────────────────────────────────────────────────────────
+new Chart('chart-stack', {
+  type: 'bar',
+  data: {
+    labels: MONTHS,
+    datasets: [
+      { label: 'Payroll',   data: D.payroll, backgroundColor: 'rgba(232,55,74,0.75)',  borderRadius: 0 },
+      { label: 'Marketing', data: D.mktg,    backgroundColor: 'rgba(245,158,11,0.7)',  borderRadius: 0 },
+      { label: 'Tax',       data: D.tax,     backgroundColor: 'rgba(83,74,183,0.65)',  borderRadius: 0 },
+      { label: 'Other',     data: D.other,   backgroundColor: 'rgba(90,122,154,0.6)',  borderRadius: 0 },
+    ]
+  },
+  options: {
+    ...baseOpts(),
+    plugins: { ...baseOpts().plugins },
+    scales: {
+      x: { stacked: true, grid: { color: gridColor }, ticks: { color: '#5A7A9A', maxRotation: 0, font: { size: 9 } } },
+      y: { stacked: true, grid: { color: gridColor }, ticks: { color: '#5A7A9A', callback: v => fmt(v) } }
+    }
+  }
+});
+
+// ── RUNWAY SPARKLINE ───────────────────────────────────────────────────────
+new Chart('chart-runway', {
+  type: 'line',
+  data: {
+    labels: MONTHS,
+    datasets: [{
+      label: 'Runway (months)',
+      data: D.runway,
+      borderColor: '#C9A84C',
+      backgroundColor: 'rgba(201,168,76,0.1)',
+      borderWidth: 1.5,
+      pointRadius: D.runway.map(v => v !== null ? 3 : 0),
+      pointBackgroundColor: D.runway.map(v => v !== null && v < 3 ? '#E8374A' : '#00A86B'),
+      tension: 0.3, fill: true, spanGaps: false
+    }]
+  },
+  options: {
+    ...baseOpts(),
+    plugins: { ...baseOpts().plugins, legend: { display: false } },
+    scales: {
+      x: { grid: { color: gridColor }, ticks: { color: '#5A7A9A', maxRotation: 0, font: { size: 9 } } },
+      y: { grid: { color: gridColor }, ticks: { color: '#5A7A9A', callback: v => v + 'mo' }, min: 0 }
+    }
+  }
+});
+
+// ── KPI FILL ───────────────────────────────────────────────────────────────
+const burnPositive = D.burn.filter(v => v > 0);
+const avgBurn = burnPositive.length ? burnPositive.reduce((a,b)=>a+b,0)/burnPositive.length : 0;
+document.getElementById('kpi-burn').textContent = avgBurn > 0 ? fmt(avgBurn) : '✓ None';
+
+const minRunway = D.runway.filter(v => v !== null);
+document.getElementById('kpi-runway').textContent = minRunway.length ? minRunway[0].toFixed(1) + ' mo' : '✓ Safe';
+
+// Breakeven avg = avg of (outflow - var_costs) / (1 - 0.03) — approximate from data
+const beAvg = D.outflow.reduce((a,b)=>a+b,0) / 24 * 0.9; // approx fixed costs
+document.getElementById('kpi-be').textContent = fmt(Math.round(beAvg));
+
+document.getElementById('kpi-close').textContent = fmt(D.balance[23]);
+
+// ── MONTH SELECTOR ─────────────────────────────────────────────────────────
+let selectedMonth = 0;
+const btnContainer = document.getElementById('month-btns');
+MONTHS.forEach((m, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'mo-btn' + (i === 0 ? ' active' : '');
+  btn.textContent = m;
+  btn.onclick = () => {
+    document.querySelectorAll('.mo-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedMonth = i;
+    updateWaterfall(i);
+    updateCosts(i);
+    updateRunwayGauge(i);
+  };
+  btnContainer.appendChild(btn);
+});
+
+function updateWaterfall(m) {
+  const prev = m > 0 ? m - 1 : null;
+  const inf  = D.inflow[m];
+  const out  = D.outflow[m];
+  const ncf  = D.ncf[m];
+  const bal  = D.balance[m];
+
+  const rows = [
+    { label: '▲ Total Inflow',    val: inf,           cls: 'wf-row-inflow', sub: false },
+    { label: '   MRR',            val: D.mrr[m],      cls: 'wf-row-sub',   sub: true },
+    { label: '   New MRR Won',    val: D.newmrr[m],   cls: 'wf-row-sub',   sub: true },
+    { label: '▼ Total Outflow',   val: -out,          cls: 'wf-row-outflow',sub: false },
+    { label: '   Payroll',        val: -D.payroll[m], cls: 'wf-row-sub',   sub: true },
+    { label: '   Marketing',      val: -D.mktg[m],    cls: 'wf-row-sub',   sub: true },
+    { label: '   Tax',            val: -D.tax[m],     cls: 'wf-row-sub',   sub: true },
+    { label: '   Other Costs',    val: -D.other[m],   cls: 'wf-row-sub',   sub: true },
+    { label: '= Net Cash Flow',   val: ncf,           cls: 'wf-row-net',   sub: false },
+    { label: '  Closing Balance', val: bal,           cls: '',             sub: false },
+  ];
+
+  const tbody = document.getElementById('wf-body');
+  tbody.innerHTML = rows.map(r => {
+    const delta = (prev !== null && !r.sub) ? (r.val - (
+      r.label.includes('Inflow') ? D.inflow[prev] :
+      r.label.includes('Outflow') ? -D.outflow[prev] :
+      r.label.includes('Net') ? D.ncf[prev] :
+      r.label.includes('Balance') ? D.balance[prev] : r.val
+    )) : null;
+    const deltaStr = delta !== null ? `<span class="${delta>=0?'wf-pos':'wf-neg'}">${delta>=0?'+':''}${fmt(delta)}</span>` : '—';
+    const pct = inf > 0 && !r.sub ? (Math.abs(r.val)/inf*100).toFixed(1)+'%' : '—';
+    const valColor = r.val > 0 ? 'wf-pos' : r.val < 0 ? 'wf-neg' : 'wf-neutral';
+    return `<tr class="${r.cls}">
+      <td>${r.label}</td>
+      <td class="${valColor}">${fmtFull(r.val)}</td>
+      <td>${deltaStr}</td>
+      <td class="wf-neutral">${pct}</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateCosts(m) {
+  const total = D.outflow[m];
+  const items = [
+    { label: 'Payroll',   val: D.payroll[m], color: '#E8374A' },
+    { label: 'Marketing', val: D.mktg[m],    color: '#F59E0B' },
+    { label: 'Tax',       val: D.tax[m],     color: '#534AB7' },
+    { label: 'Other',     val: D.other[m],   color: '#5A7A9A' },
+  ];
+  document.getElementById('cost-bars').innerHTML = items.map(it => `
+    <div class="cost-row">
+      <span class="cost-label">${it.label}</span>
+      <div class="cost-bar-wrap">
+        <div class="cost-bar" style="width:${(it.val/total*100).toFixed(1)}%;background:${it.color}"></div>
+      </div>
+      <span class="cost-val">${fmtFull(it.val)}</span>
+    </div>
+  `).join('');
+}
+
+function updateRunwayGauge(m) {
+  const rw = D.runway[m];
+  const numEl   = document.getElementById('rw-num');
+  const unitEl  = document.getElementById('rw-unit');
+  const fillEl  = document.getElementById('rw-fill');
+  if (rw === null) {
+    numEl.textContent = '✓';
+    numEl.style.color = '#00A86B';
+    unitEl.textContent = `safe — cash-positive (${MONTHS[m]})`;
+    fillEl.style.width = '100%';
+    fillEl.style.background = '#00A86B';
+  } else {
+    numEl.textContent = rw.toFixed(1);
+    numEl.style.color = rw < 3 ? '#E8374A' : rw < 6 ? '#F59E0B' : '#00A86B';
+    unitEl.textContent = `months remaining (${MONTHS[m]})`;
+    const pct = Math.min(100, rw / 12 * 100);
+    fillEl.style.width = pct + '%';
+    fillEl.style.background = rw < 3 ? '#E8374A' : rw < 6 ? '#F59E0B' : '#00A86B';
+  }
+}
+
+updateWaterfall(0);
+updateCosts(0);
+updateRunwayGauge(0);
+</script>
+</body>
+</html>
