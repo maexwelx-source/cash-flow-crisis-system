@@ -60,35 +60,6 @@ Runway shows months of cash left at current burn, with a hard floor at zero and 
 
 ---
 
-## Power BI connection
-
-Connect via Get Data - Excel Workbook - Export Data sheet only. Set Value to Decimal, Month Num to Whole Number, Date Full to Date. Sort the Date column by Month Num in Data view so the axis renders chronologically.
-
-DAX measures to create:
-
-```dax
-Total Inflow = CALCULATE(SUM(Export_Data[Value]), Export_Data[Sub-category] = "Total Inflow")
-
-Net Cash Flow = CALCULATE(SUM(Export_Data[Value]), Export_Data[Sub-category] = "Net Cash Flow")
-
-Closing Balance = CALCULATE(SUM(Export_Data[Value]), Export_Data[Sub-category] = "Closing Balance")
-
-Burn Rate = CALCULATE(SUM(Export_Data[Value]), Export_Data[Sub-category] = "Burn Rate")
-
-Avg Burn Rate =
-AVERAGEX(
-    FILTER(
-        VALUES(Export_Data[Date]),
-        CALCULATE(SUM(Export_Data[Value]), Export_Data[Sub-category] = "Net Cash Flow") < 0
-    ),
-    CALCULATE(SUM(Export_Data[Value]), Export_Data[Sub-category] = "Burn Rate")
-)
-```
-
-Recommended visuals: Line and Clustered Column for NCF plus Balance on dual axis, Stacked Column for outflow breakdown filtered to Category = Outflow, Bar Chart for Burn Rate with conditional red/grey coloring, Cards for KPIs, Slicer on Scenario Name for scenario comparison.
-
----
-
 ## Stack
 
 Excel - Power BI (DAX) - HTML( Dashboard) -  for model generation and validation
